@@ -1,7 +1,6 @@
 '''
-Created on Jul 25, 2017
+Created on Jul 25, 2018
 
-@author: SummitWorks
 '''
 
 # a,b,c,d,e,f=10,4,2,1,10,2
