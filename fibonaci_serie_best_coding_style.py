@@ -1,7 +1,6 @@
 '''
-Created on Jul 21, 2017
+Created on Jul 21, 2018
 
-@author: SummitWorks
 '''
 def fib(x):
     a,b=0,1
