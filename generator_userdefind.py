@@ -1,7 +1,6 @@
 '''
-Created on Jun 28, 2017
+Created on Jun 28, 2018
 
-@author: SummitWorks
 '''
 # using iterator its very complex
 # class PowTwo:
