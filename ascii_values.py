@@ -1,7 +1,6 @@
 '''
-Created on Jul 26, 2017
+Created on Jul 26, 2018
 
-@author: SummitWorks
 '''
 
 ch=input("ente a char")
