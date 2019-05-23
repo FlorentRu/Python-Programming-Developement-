@@ -1,7 +1,6 @@
 '''
-Created on Jul 19, 2017
+Created on Jul 19, 2018
 
-@author: SummitWorks
 '''
 var={1:'a',2:'b',3:'c'}
 
