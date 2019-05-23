@@ -1,7 +1,7 @@
 '''
 Created on Jul 19, 2017
 
-@author: SummitWorks
+
 '''
 import math
 def operation_result(op,var1,var2):
