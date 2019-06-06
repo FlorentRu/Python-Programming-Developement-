@@ -1,7 +1,6 @@
 '''
-Created on Jun 17, 2017
+Created on Feb 17, 2019
 
-@author: SummitWorks
 '''
 # Output: range(0, 10)
 print(range(10))
