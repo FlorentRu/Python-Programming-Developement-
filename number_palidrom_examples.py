@@ -1,7 +1,6 @@
 '''
-Created on Jul 19, 2017
+Created on Feb 20, 2019
 
-@author: SummitWorks
 '''
 def reverse_number(num):
     sum=0
