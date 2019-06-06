@@ -1,7 +1,6 @@
 '''
-Created on Jul 25, 2017
+Created on Jun 1, 2019
 
-@author: SummitWorks
 '''
 a = 10
 b = 20
