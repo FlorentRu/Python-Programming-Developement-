@@ -1,7 +1,6 @@
 '''
-Created on Jun 28, 2017
+Created on Feb 28, 2019
 
-@author: SummitWorks
 '''
 # define a list
 my_list = [4, 7, 0, 3]
