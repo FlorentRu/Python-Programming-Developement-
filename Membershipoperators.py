@@ -1,7 +1,6 @@
 '''
 Created on Jun 15, 2017
 
-@author: SummitWorks
 '''
 x = 'Hello world'
 y = {1:'a',2:'b'}
