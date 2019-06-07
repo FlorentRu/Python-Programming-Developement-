@@ -1,7 +1,6 @@
 '''
 Created on Jun 17, 2017
 
-@author: SummitWorks
 '''
 for x in range(1,5 ):
     ### Inner for loop     ###
