@@ -26,7 +26,7 @@ classifier = Sequential()
 classifier.add(Convolution2D(40, 4, 4, input_shape = (64, 64, 3), activation = 'relu')) # Extraction of the matrix of features aka features of the WiFi working of ducks disposition on map
 
 # Step 2 - Pooling
-classifier.add(MaxPooling2D(pool_size = (2, 2))) # Making sure that the geographic variance in the Satellite maps won't affect the result
+classifier.add(MaxPooling2D(pool_size = (2, 2))) # Making sure that the geographic variance in the Satellite images won't affect the result
 
 # Adding a second convolutional layer
 classifier.add(Convolution2D(32, 3, 3, activation = 'relu'))
