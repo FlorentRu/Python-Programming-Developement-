@@ -1,6 +1,7 @@
 # Convolutional Neural Network
-# Tackling the WiFi Radio Diffusion Obstacles predicament
-# Goal: Train a model using Computer Vision and Google Map images to establish a referential WiFi working of spatial dipotion of ducks
+# Tackling the issue of Radio Diffusion Obstacles 
+# Goal: Train a model using Computer Vision and Satelite images to establish a referential spatial disposition of ducks, where WiFi is working
+# Train the AI model to recognize this referential spatial disposition of ducks on any satelite image, regardless of geographical model
 
 
 # -*- coding: utf-8 -*-
@@ -71,7 +72,7 @@ classifier.fit_generator(training_set,
 # Part 3 Making New Prediction
 import numpy as np
 from keras.preprocessing import image
-test_image = image.load_img('dataset/predict/Working_or_NotWorking.jpg', target_size = (64,64)) # Teaching the AI to establish a model of Working triangulation
+test_image = image.load_img('dataset/predict/Working_or_NotWorking.jpg', target_size = (64,64)) # Teaching the AI to establish a model of Working ducks spatial disposition
 test_image = image_to_array(test_image)
 test_image = np.expand_dims(test_image, axis =0)
 result = classifier.predict(test_image)
