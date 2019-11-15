@@ -1,8 +1,6 @@
-# Making a predictive model using the Artificial Intelligence to predict the efficacy of the network once it is deployed
-# I am expecting a dataset of cathegorical variables: 
-# Independent variables (Distance between civilians and ducks, or the weather, I have seen in one video that humidity matters too, ...)
-# Dependant Variables (Map: {0: people will be able to use the duck's network , 1: people won't be able to use the duck's network })
-# Programming language used: Python
+# Title of The Project #
+
+# Leveraging the level engagement of clients
 
 # Beginning of the Artificial Neural Network algorithm
 
@@ -72,3 +70,5 @@ y_pred = (y_pred > 0.5)
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test, y_pred)
+
+# Return "1" for the client is engaged and "0" for the client isn't engaged
