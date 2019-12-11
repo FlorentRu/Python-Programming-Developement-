@@ -1,6 +1,6 @@
 # Title of The Project #
 
-# Leveraging the clients cathegorical variables to understand the level engagement of clients
+# Leveraging the clients categorical variables to understand the level engagement of clients
 
 # Beginning of the Artificial Neural Network algorithm
 
