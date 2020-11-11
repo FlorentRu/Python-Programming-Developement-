@@ -1,0 +1,245 @@
+---
+title: Credit Fraud Transactions Detection with Random Forest
+author: 
+- Florent Rudel Ndeffo
+- <h4 style="font-weight:bold; background-color:lightsteelblue"></h4>
+date: November 11, 2020
+output:
+  prettydoc::html_pretty:
+    newpage_html_class: page-break
+    theme: leonids
+    highlight: github
+    math: katex
+---
+```{css, echo = FALSE}
+// display the pagebreak only when printing the html page
+@media all {
+    .page-break { display: none; }
+}
+@media print {
+    .page-break { display: block; break-after: page; }
+}
+```
+
+<font size ="5"><div align="left">**Abstract**</div></font>
+
+In this project we aim at detecting fraudulent transactions using random forest with the following steps:
+
+- Import a credit card customers dataset. The dataset can be downloaded here:https://www.kaggle.com/mlg-ulb/creditcardfraud/download. Due to confidentiality issues the data has been transformed using a technic called PCA which stands for Principal Component Analysis.  
+
+- Display an overview of the bank dataset which has about 285000 rows.
+
+- Setup Spark context for computations.
+
+- Setup the random seed for sampling. The dataset will be split into 80% for training and 20% for testing.
+
+- Use default R random forest algorithm and then the one coming from Spark ML libraries.
+ 
+- Compare the computational time of the 2 procedure using a plot.
+
+- Extract the important variables using Random Forest from Spark.
+
+- Determine model effectivness and predicting power by computing training error and testing error.
+
+
+---
+
+<font size ="5"><div align="left">**Introduction**</div></font>
+
+---
+Banks and other credit card issuers companies have had a hard time detecting, preventing and responding to frauds as the number of transactions increased. As a result, it has become extrement important for banks to detect those anomalies effectively and faster. Each year, according to the Nilson report, it cost about $35 billions.Identifying those frauds by human hands has become impossible. For example in the dataset we will use, there is an estimated 285000 transactions over a 2 day period due to the high number of transactions. It is in that optic that data science has become critical to help understand data trend and predict anomalies at a larger scale. While looking for the right algorithm to use, there are certain procedures to follow in order to remain consistent and precise in any analysis.The outcome of those procedures will determine which machine learning algorithm suit best the problem. 
+
+### Pre-requisites 
+
+# Step 1:  Read customers dataset' file and load the required libraries
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Load libraries
+# dplyr is use to break complex formula into simpler piece of code 
+# more understandable
+library(dplyr)
+# Spark to leverage large datasets
+library(sparklyr)
+# ggplot to plot graphs
+library(ggplot2)
+library(cowplot)
+# Load random forest algorithm and other functions
+library(randomForest)
+# Caret is used to predict the customers in the testing set
+library(caret)
+# DataExplorer creates a preview of the dataset
+library(DataExplorer)
+# knitr is to display tables
+library(knitr)
+library(flextable)
+
+# Read file
+bank_customers <-read.csv("C:/Users/ndeff/OneDrive/Desktop/Research and online classes/Github/Data Science/Random Forest/creditcard.csv",
+                       sep=",",stringsAsFactors = FALSE, header=T,na.strings=c("#NUM!,","?"))
+# Convert Exited column from continous to discrete value
+bank_customers$Class <- as.factor(bank_customers$Class)
+# number of rows of car dataset
+n=nrow(bank_customers)
+```
+
+# Step 2: Show an overview and a sample of the dataset
+
+Having an overview of the dataset structure is extremely important because this could show several characteristics. For example whether the dataset is balanced or imbalanced. A dataset is balanced if it follows these criterias. If there is n distinct preferably discrete output, Then the data should be evenly distributed among each output. In that case the probability p of any output i for example to occur is approximatively p =$\dfrac{1}{n}$. However, in this case the bank dataset we are currently using is most likely **imbalanced** because we assume in general that most credit card transactions are normal. This assumption will be verified through the steps below.
+
+### The plot below count the missing values and display how many discrete and continuous columns.
+
+```{r, echo=FALSE}
+plot_intro(bank_customers)
+```
+
+Sample 
+
+```{r, echo=FALSE}
+table = flextable(bank_customers[1:5,],col_keys = names(bank_customers), 
+           cwidth = 0.75, cheight = 1, theme_fun = theme_tron_legacy)
+# Add color to text and the body of the table
+table <- color(table,color = "black", part = "body")
+table <- bg(table,bg = "white")
+table
+```
+
+
+# Step 3: Seting up Apache Spark
+
+Setting up Spark follows the substeps below:
+
+* Create a spark config variable that will contain all the details about how ressources we want Spark to use henceforth
+
+* Since I am using Spark locally I am able to allocate the number of cores and how much RAM will be used
+```{r}
+conf <- spark_config()
+conf$`sparklyr.cores.local` <- 4
+conf$`sparklyr.shell.driver-memory` <- "4G"
+```
+
+* Then create and connect a Spark cluster that will have the config above with this command
+```{r, echo=FALSE}
+system.time( sc <- spark_connect(master = "local",version = "2.1.0",
+                                 config = conf))
+```
+Copy the dataset into the Spark Cluster for faster computations and create a reference to it locally
+```{r, echo=FALSE}
+customer_data <- copy_to(sc, bank_customers)
+```
+
+
+## Count the number of values with 0 and 1 as output using dplyr
+
+Count data with output 0.
+```{r}
+zero_count <- count(customer_data%>%
+  select(Class)%>%
+  filter(Class == 0)%>%
+  collect())
+```
+Count data with output 1.
+```{r}
+one_count <- count(customer_data%>%
+  select(Class)%>%
+  filter(Class == 1)%>%
+  collect())
+```
+
+## Show the distribution of data for each output
+
+```{r, echo=FALSE}
+df <- as.data.frame(zero_count)
+df <- rbind(df, one_count)
+names(df) <- "Count"
+row.names(df) <- c("Count of 0s", "Count of 1s")
+Values<- row.names(df)
+#pct <- c(as.numeric(zero_count/sum(df$Count)), as.numeric(one_count/sum(df$Count)))
+#df  <- cbind(df, pct)
+```
+
+Class column will be the outcome has 2 distinct and discrete values which are 0 and 1. **0** stand for **normal** and **1** for **fraudulent transaction**. The **timesteps** in this dataset is likely to be represented **in seconds(s)**.
+
+The code below will show the distribution of data among each outcome(0 and 1)
+```{r, echo=FALSE}
+ggplot(df)+ aes(x= Values, y= Count)+
+  geom_bar(colour = "black",  fill= c("green", "red"),
+           alpha= 0.7, stat = "summary", show.legend = TRUE)+
+  theme(plot.title = element_text(size = 20, hjust = 0.5), panel.background = element_rect("white"))+
+  geom_text(aes(label= scales::percent(Count/sum(Count), accuracy = 0.01)),position = position_dodge(width = 0.9),vjust= -0.5, size= 3)+
+  ggtitle("Legal vs Illegal Transactions")
+  
+```
+
+# Step 4: Split the dataset into 80% training and 20% testing
+
+```{r}
+#80% train sample
+train_sample = sample(1:n, floor(n*0.80))
+train_data = bank_customers[train_sample, ]
+test_data = bank_customers[-train_sample, ]
+```
+
+Copy the training dataset into the Spark Cluster for faster computations and create a reference to it locally
+
+```{r}
+spark_train_data <- copy_to(sc, train_data)
+```
+
+Copy the test dataset into the Spark Cluster for faster computations and create a reference to it locally
+
+```{r}
+spark_test_data <- copy_to(sc, test_data)
+```
+
+# Step 5: Train the model using Spark and default R ML libraries
+
+```{r, echo=FALSE}
+# Training model using randomForest from spark Machine learning library
+spark_training_time <- system.time(rf_spark <- ml_random_forest_classifier(spark_train_data,Class ~ ., num_trees = 100))
+```
+
+# Step 6: Determine important variables or columns 
+
+The important features are listed below although it is impossible to determine exactly what they are or mean. 
+```{r}
+ml_feature_importances(rf_spark)
+```
+6 Majors factors can actually help perform anomaly detection relatively accurately. The percentage may slightly vary depending on the sampling used for training. The important features are:
+
+- **v17** counts for about **15.34%**
+
+- **v12** use by the customer counts for **15.03%**
+
+- **v16** influence the model for about **11.206%** 
+
+- **v10** influence the model for about **10.25%** 
+
+- **v9** influence the model for about **8.29%** 
+
+- **v7** influence the model for about **7.83%** 
+
+# Steps 7: Determining the model effectiveness by computing the testing error
+
+Predict and collect data from Spark clusters and create a reference to the predicted data locally
+```{r}
+test_predicted <- ml_predict(rf_spark,spark_test_data)%>%
+  collect()
+```
+
+### Computing the testing error
+
+```{r}
+rdmFor_testing_error <- sum(test_predicted$prediction!= test_data$Class)/nrow(test_data)
+rdmFor_testing_error
+```
+The **testing error** is about **0.05%**. This means the **accuracy** is **99.95%**. 
+
+Close Spark connection
+```{r}
+spark_disconnect(sc)
+```
+
+<font size ="5"><div align="left">**Conclusion**</div></font>
+
+In this project, we were successfully able to identify fraudulent transactions with an **accuracy of 99.95%**.Again it is hard to discuss why there is **0.05%** based on features because they are anynomous. However, a further analysis of the structure of the dataset using different Machine learning algorithms might help reduce that error. 
+ 

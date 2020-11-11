@@ -1,0 +1,198 @@
+---
+title: Customers Churn for Banks
+author: 
+- Florent Rudel Ndeffo
+- <h4 style="font-weight:bold; background-color:lightsteelblue"></h4>
+date: November 5, 2020
+output:
+  prettydoc::html_pretty:
+    newpage_html_class: page-break
+    theme: leonids
+    highlight: github
+    math: katex
+---
+```{css, echo = FALSE}
+// display the pagebreak only when printing the html page
+@media all {
+    .page-break { display: none; }
+}
+@media print {
+    .page-break { display: block; break-after: page; }
+}
+```
+
+<font size ="5"><div align="left">**Abstract**</div></font>
+
+In this project we aim at predicting whether a customer of a bank can leave or not using random forest with the following steps:
+
+- Import a bank customer dataset. 
+
+- Display an overview of the bank dataset which has about 10000 rows.
+
+- Setup Spark context for computations.
+
+- Setup the random seed for sampling. The dataset will be split into 80% for training and 20% for testing.
+
+- Use default R random forest algorithm and then the one coming from Spark ML libraries.
+ 
+- Compare the computational time of the 2 procedure using a plot.
+
+- Extract the important variables using Random Forest from Spark.
+
+- Determine model effectivness and predicting power by computing training error and testing error.
+
+
+---
+
+<font size ="5"><div align="left">**Introduction**</div></font>
+
+---
+We live in an era where technology can more than ever, help us to compute and train complex model to predict outputs when having specific inputs for various dataset. However, the efficient of a predicting model is directly related to the type of output and the number of outcomes. For example, if you want to determine an output that has only 2 possible outcomes therefore you might want to use a logistic regression algorithm. We do not use a logistic regression algorithm in this analysis because usually the algorithm fails to capture when they are many parameters influencing an outcome. 
+
+# Step 1:  Read customers dataset' file and load the required libraries
+
+```{r}
+# Load libraries
+# dplyr is use to break complex formula into simpler piece of code 
+# more understandable
+library(dplyr)
+# Spark to leverage large datasets
+library(sparklyr)
+# ggplot to plot graphs
+library(ggplot2)
+library(cowplot)
+# Load random forest algorithm and other functions
+library(randomForest)
+# Caret is used to predict the customers in the testing set
+library(caret)
+# DataExplorer creates a preview of the dataset
+library(DataExplorer)
+# knitr is to display tables
+library(knitr)
+library(flextable)
+# Read file
+bank_customers <- read.csv("C:/Users/ndeff/OneDrive/Desktop/Research and online classes/Github/Data Science/Random Forest/Churn_Modelling.csv",
+                       sep=",",stringsAsFactors = FALSE, header=T,na.strings=c("#NUM!,","?"))
+# Convert Exited column from continous to discrete value
+bank_customers[,14]<- as.factor(bank_customers[,14])
+# number of rows of car dataset
+n=nrow(bank_customers)
+```
+
+# Step 2: Show an overview and a sample of the dataset
+
+Overview
+```{r}
+plot_intro(bank_customers)
+```
+
+Sample 
+
+```{r}
+table = flextable(bank_customers[1:5,],col_keys = names(bank_customers), 
+           cwidth = 0.75, cheight = 1, theme_fun = theme_tron_legacy)
+# Add color to text and the body of the table
+table <- color(table,color = "black", part = "body")
+table <- bg(table,bg = "white")
+table
+```
+
+# Step 3: Seting up Apache Spark
+
+Setting up Spark follows the substeps below:
+
+* Create a spark config variable that will contain all the details about how ressources we want Spark to use henceforth
+
+* Since I am using Spark locally I am able to allocate the number of cores and how much RAM will be used
+```{r}
+conf <- spark_config()
+conf$`sparklyr.cores.local` <- 2
+conf$`sparklyr.shell.driver-memory` <- "2G"
+```
+
+* Then create and connect a Spark cluster that will have the config above with this command
+```{r}
+system.time( sc <- spark_connect(master = "local",version = "2.1.0",
+                                 config = conf))
+```
+# Step 4: Split the dataset into 80% training and 20% testing
+```{r}
+#80% train sample
+train_sample = sample(1:n, floor(n*0.80))
+train_data = bank_customers[train_sample, ]
+test_data = bank_customers[-train_sample, ]
+```
+
+Copy the training dataset into the Spark Cluster for faster computations and create a reference to it locally
+
+```{r}
+customer_data <- copy_to(sc, train_data)
+```
+
+# Step 5: Train the model using Spark and default R ML libraries
+
+```{r}
+# Training time without using spark
+training_time <- system.time(rf <- randomForest(Exited ~ CreditScore+ Age+ Tenure+ Balance+ NumOfProducts+
+                     HasCrCard+ IsActiveMember+ EstimatedSalary, data = train_data,
+                  type = classification, importance = TRUE, proximity = TRUE))
+
+# Training model using randomForest from spark Machine learning library
+spark_training_time <- system.time(rf_spark <- ml_random_forest_classifier(customer_data,Exited ~ CreditScore+ Age+ Tenure+ Balance+ NumOfProducts+ HasCrCard+ IsActiveMember+ EstimatedSalary, num_trees = 500))
+```
+
+Compare the computational time using Spark and without and plot the results
+```{r}
+# Compare the training time when using spark and without using spark
+names(training_time) <-c("User", "Sys","without Spark")
+names(spark_training_time) <- c("User", "Sys","Spark")
+df <- as.data.frame(c(training_time[3], spark_training_time[3]))
+names(df) <- "Time"
+Tool<- row.names(df)
+ggplot(df)+ aes(x = Tool,y= Time)+
+  geom_bar(colour = "black",  fill= c("green", "red"),
+           alpha= 0.7, stat = "summary", show.legend = TRUE)+
+  theme(plot.title = element_text(size = 20, hjust = 0.5), panel.background = element_rect("white"))+
+  ggtitle("Computational Time in sec(s)")
+```
+
+# Step 6: Determine important variables in predicting when a customer leave or does not leave the bank
+```{r}
+ml_feature_importances(rf_spark)
+```
+3 Majors factors to accurately predict according to the model if a customer will leave the bank are:
+
+- **Age** counts for about **44.5%**
+
+- **Number of products** use by the customer counts for **35.87%**
+
+- **Is the member active or not** influence the model for about **11.84%** 
+
+# Steps 7: Determining the model effectiveness by computing the training  and testing error
+
+```{r}
+train_predict <- predict(rf, train_data)
+test_predict  <- predict(rf, test_data)
+```
+
+### Computing the training error
+
+```{r}
+rdmFor_training_error <- sum(train_predict!= train_data$Exited)/nrow(train_data)
+rdmFor_training_error
+```
+
+The **training error** is about **5.125%**
+
+### Computing the testing error
+
+```{r}
+rdmFor_testing_error <- sum(test_predict!= test_data$Exited)/nrow(test_data)
+rdmFor_testing_error
+```
+The **testing error** is about **14.6%**
+
+<font size ="5"><div align="left">**Conclusion**</div></font>
+
+In this analysis, we discover that the major factors to consider when trying to determine which costumers are more likely to leave. We found out that **age**, **number of products used** and **is the customer active** are extremely important. **Age, number of products used and is a customer active** influenced the model respectively with **44.5%, 35.8% and 11.8%**. 
+ 
